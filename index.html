@@ -735,7 +735,7 @@ table.worst td.ploss-amount{
       <div class="sub">(주)태진다이텍 · 품질관리팀</div>
     </div>
     <div class="home-actions">
-      <button class="btn primary" onclick="generateReportFromCumulative()">📊 보고서</button>
+      <button class="btn primary" onclick="generateReportFromCumulative()">📊 보고서 보기</button>
       <button class="btn good" onclick="openMonthClose()">🔗 월마감</button>
     </div>
   </div>
@@ -764,8 +764,11 @@ table.worst td.ploss-amount{
   <div class="action-bar">
     <div class="info">📄 <span id="reportInfo">품질현황 보고서</span></div>
     <div style="display:flex; gap:8px;">
+      <button class="btn" onclick="openMonthClose()" style="padding:8px 16px; font-size:12px; background:var(--good);">
+        🔗 월마감
+      </button>
       <button class="btn" onclick="goBackToUploader()" style="padding:8px 16px; font-size:12px; background:var(--ink-2);">
-        ← 뒤로가기 (메인)
+        📋 실적요약 · 관리
       </button>
       <button class="btn" onclick="downloadPdfReport()" style="padding:8px 16px; font-size:12px; background:var(--accent);">
         📄 PDF 다운로드
@@ -5384,10 +5387,10 @@ function mcApplyToCumulative(){
     updateCumulativeStatus();
     document.getElementById('mcResult').insertAdjacentHTML('afterbegin',
       `<div class="mc-ok" style="margin-bottom:10px">✅ <b>${R.monthKey} 월마감 반영 완료</b> — ${names}</div>`);
-    if(confirm(`✅ ${R.monthKey} 월마감 반영이 완료되었습니다.\n\n지금 바로 보고서를 생성할까요?`)){
+    setTimeout(() => {
       closeMonthClose();
       generateReportFromCumulative();
-    }
+    }, 700);
   }catch(e){
     alert('반영 실패: ' + e.message);
   }
@@ -5621,10 +5624,15 @@ function openDataCheck(){
 }
 function closeDataCheck(){ document.getElementById('dataCheckModal').classList.remove('show'); }
 
-// 페이지 로드 시 마스터 상태 표시
+// 페이지 로드 시: 누적 실적이 있으면 보고서를 바로 표시
 document.addEventListener('DOMContentLoaded', () => {
   updateMasterStatusBar();
   updateCumulativeStatus();
+  try{
+    if(Object.keys(CUMULATIVE_DATA).length > 0){
+      generateReportFromCumulative();
+    }
+  }catch(e){ console.error('보고서 자동 생성 실패:', e); }
 });
 </script>
 
