@@ -751,6 +751,7 @@ table.worst td.ploss-amount{
     <a onclick="openManualEntry()">수기 입력</a>
     <a onclick="openPriceMaster()">단가 마스터</a>
     <a onclick="openDataCheck()">데이터 점검</a>
+    <a onclick="mergeVendorAliasesInCumulative()">거래처명 정리</a>
     <a onclick="qsPush()">☁ 서버 저장</a>
     <a onclick="qsPullManual()">☁ 서버 불러오기</a>
     <a onclick="exportCumulativeBackup()">백업</a>
@@ -901,6 +902,7 @@ table.worst td.ploss-amount{
     <div class="modal-footer">
       <div style="font-size:12px; color:var(--ink-2);">⚠ 미마감 월은 [🔗 마감] 버튼으로 불량이력 DB에서 바로 불러올 수 있습니다.</div>
       <div style="display:flex; gap:8px;">
+        <button class="btn" style="background:var(--accent-2); color:var(--ink);" onclick="closeDataCheck();mergeVendorAliasesInCumulative()">🔀 거래처명 정리</button>
         <button class="btn" style="background:var(--blue);" onclick="exportCumulativeBackup()">💾 백업(JSON)</button>
         <button class="btn" style="background:#999;" onclick="closeDataCheck()">닫기</button>
       </div>
@@ -1172,6 +1174,12 @@ const DEFAULT_VENDOR_ALIAS = {
   'SKF raceway': 'Raceway',
   'SKF SBC': 'Raceway',
   'SKF sbc': 'Raceway',
+  'SBC': 'Raceway',
+  'sbc': 'Raceway',
+  'SKF-SBC': 'Raceway',
+  'SKF_SBC': 'Raceway',
+  'SBC(Raceway)': 'Raceway',
+  'Raceway(SBC)': 'Raceway',
   '레이스웨이': 'Raceway',
   'raceway': 'Raceway',
   'RACEWAY': 'Raceway',
@@ -1189,13 +1197,19 @@ const DEFAULT_VENDOR_ALIAS = {
 let VENDOR_ALIAS = (() => {
   try {
     const saved = localStorage.getItem('quality_vendor_alias_v6');
-    if(saved) return JSON.parse(saved);
+    if(saved){
+      const m = JSON.parse(saved);
+      // 새로 추가된 기본 별칭을 저장본에 병합 (사용자 수정값 우선)
+      Object.entries(DEFAULT_VENDOR_ALIAS).forEach(([k, v]) => { if(m[k] === undefined) m[k] = v; });
+      return m;
+    }
   } catch(e) {}
   return JSON.parse(JSON.stringify(DEFAULT_VENDOR_ALIAS));
 })();
 
 function saveVendorAlias(){
   try { localStorage.setItem('quality_vendor_alias_v6', JSON.stringify(VENDOR_ALIAS)); } catch(e) {}
+  try{ if(typeof qsSchedulePush === 'function') qsSchedulePush(); }catch(e){}
 }
 
 // ============================================================
@@ -5119,6 +5133,8 @@ function mcVendorOptions(){
   const set = new Set(Object.keys(VENDOR_MASTER));
   Object.values(CUMULATIVE_DATA).forEach(md => Object.keys(md).forEach(v => set.add(v)));
   set.delete('미분류');
+  set.delete('SKF');          // 단가 마스터 그룹명 (보고서 거래처 아님)
+  set.delete('SKF씰/일진');
   return Array.from(set).sort();
 }
 
@@ -5373,6 +5389,21 @@ function mcRenderPreview(){
     }
   }
 
+  // ⭐ 표준 거래처가 아닌 이름(예: SBC) → 통합 대상 지정
+  const stdSet = new Set(mcVendorOptions());
+  const odd = R.vendors.map(v => v.name).filter(n => n !== '미분류' && !stdSet.has(n));
+  if(odd.length){
+    const opts = mcVendorOptions();
+    warn += `<div class="mc-warn">🔀 <b>표준 거래처명이 아닌 항목 ${odd.length}개</b> — 통합하지 않으면 별도 거래처로 집계됩니다.
+      <div class="mc-typemap">${odd.map(n => `
+        <span class="mc-tm"><b>${escapeHtml(n)}</b> →
+          <select onchange="mcMergeVendor('${escapeHtml(n).replace(/'/g, '&#39;')}', this.value)">
+            <option value="">— 통합할 거래처 —</option>
+            ${opts.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('')}
+          </select></span>`).join('')}</div>
+      <span class="mc-small">· 지정하면 즉시 재집계되고, 다음 달부터 자동으로 해당 거래처로 통합됩니다.</span></div>`;
+  }
+
   if(overwrite.length){
     warn += `<div class="mc-warn">⚠ <b>${R.monthKey}</b> 기존 누적값이 있는 거래처는 <b>덮어쓰기</b> 됩니다 → ${overwrite.map(escapeHtml).join(', ')}</div>`;
   }
@@ -5442,6 +5473,72 @@ function mcRenderPreview(){
   MC_RESULT.applyList = applyList;
 }
 
+
+// ============================================================
+// 🔀 누적 데이터 거래처명 정리 — 별칭을 다시 적용해 슬롯 통합
+//    (예: 이미 'SBC'로 저장된 월을 Raceway로 합침)
+// ============================================================
+function mergeVendorAliasesInCumulative(silent){
+  let moved = 0, monthsTouched = new Set();
+  Object.entries(CUMULATIVE_DATA).forEach(([mk, md]) => {
+    Object.keys(md).forEach(vn => {
+      const std = normalizeVendorName(vn);
+      if(std === vn || !md[vn]) return;
+      const src = md[vn];
+      if(!md[std]){
+        md[std] = src;
+      }else{
+        const dst = md[std];
+        dst.insp += src.insp || 0;
+        dst.defect += src.defect || 0;
+        dst.loss += src.loss || 0;
+        DEFECT_COLS.forEach(d => {
+          if(!dst.defectTypes) dst.defectTypes = {};
+          dst.defectTypes[d] = (dst.defectTypes[d] || 0) + ((src.defectTypes && src.defectTypes[d]) || 0);
+        });
+        Object.entries(src.parts || {}).forEach(([k, p]) => {
+          if(!dst.parts) dst.parts = {};
+          if(!dst.parts[k]){ dst.parts[k] = p; return; }
+          const t = dst.parts[k];
+          t.insp += p.insp || 0; t.defect += p.defect || 0; t.loss += p.loss || 0;
+          DEFECT_COLS.forEach(d => {
+            if(!t.defectTypes) t.defectTypes = {};
+            t.defectTypes[d] = (t.defectTypes[d] || 0) + ((p.defectTypes && p.defectTypes[d]) || 0);
+          });
+        });
+        Object.entries(src.daily || {}).forEach(([k, v]) => {
+          if(!dst.daily) dst.daily = {};
+          if(!dst.daily[k]){ dst.daily[k] = v; return; }
+          dst.daily[k].insp += v.insp || 0;
+          dst.daily[k].defect += v.defect || 0;
+        });
+      }
+      delete md[vn];
+      moved++; monthsTouched.add(mk);
+    });
+  });
+  if(moved){
+    saveCumulativeData();
+    updateCumulativeStatus();
+  }
+  if(!silent){
+    alert(moved ? `✓ 거래처명 정리 완료 — ${moved}건을 표준 거래처로 통합했습니다.\n(${Array.from(monthsTouched).sort().join(', ')})`
+                : '정리할 항목이 없습니다. 모든 거래처명이 표준입니다.');
+    if(moved) generateReportFromCumulative();
+  }
+  return moved;
+}
+
+// 거래처명 통합 (예: SBC → Raceway) 후 재집계
+function mcMergeVendor(from, to){
+  if(!from || !to) return;
+  VENDOR_ALIAS[from] = to;
+  saveVendorAlias();
+  mergeVendorAliasesInCumulative(true);   // 이미 저장된 월도 함께 통합
+  try{ if(typeof qsSchedulePush === 'function') qsSchedulePush(); }catch(e){}
+  mcFetchMonth();
+}
+
 // 미분류 기종 → 거래처 배정 후 재집계
 function mcAssignVendor(vendor, selEl){
   if(!vendor) return;
@@ -5475,6 +5572,7 @@ function mcApplyToCumulative(){
 
   try{
     mergeIntoCumulative(R.applyList);
+    mergeVendorAliasesInCumulative(true);   // 별칭 재적용 (SBC 등 구 슬롯 통합)
     updateCumulativeStatus();
     document.getElementById('mcResult').insertAdjacentHTML('afterbegin',
       `<div class="mc-ok" style="margin-bottom:10px">✅ <b>${R.monthKey} 월마감 반영 완료</b> — ${names}</div>`);
