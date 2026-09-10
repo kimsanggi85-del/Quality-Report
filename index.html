@@ -478,6 +478,43 @@ table.worst td.ploss-amount{
   z-index:1000; padding:20px; overflow-y:auto;
 }
 .modal-overlay.show{display:flex;}
+
+/* ===== 월마감 자동 연동 ===== */
+.mc-row{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; align-items:end; margin-bottom:12px;}
+.mc-row label{display:block; font-family:var(--mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ink-2); margin-bottom:5px; font-weight:700;}
+.mc-row input[type=month], .mc-row input[type=text]{width:100%; padding:9px 10px; border:1.5px solid var(--ink);
+  font-family:var(--sans); font-size:14px; background:#fff;}
+.mc-opts{display:flex; flex-wrap:wrap; gap:18px; margin:10px 0 14px; padding:10px 12px;
+  background:var(--good-bg); border:1px solid var(--good); font-size:12.5px;}
+.mc-opts label{display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:500;}
+.mc-cfg{border:1px dashed var(--ink-2); padding:12px; margin-bottom:14px; background:#FAFAF7;}
+.mc-cfg input{width:100%; padding:7px 9px; border:1px solid var(--ink-2); font-family:var(--mono); font-size:11px; margin-bottom:8px;}
+.mc-hint{padding:18px; text-align:center; color:var(--ink-2); font-size:13px; background:#FAFAF7; border:1px dashed var(--ink-2);}
+.mc-warn{margin-top:10px; padding:10px 12px; background:var(--warn-bg); border-left:4px solid var(--accent); font-size:12.5px; line-height:1.6;}
+.mc-ok{margin-top:10px; padding:10px 12px; background:var(--good-bg); border-left:4px solid var(--good); font-size:12.5px; line-height:1.6;}
+.mc-small{font-size:11px; color:var(--ink-2); font-family:var(--mono);}
+.mc-sum{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:0;
+  border:2px solid var(--ink); background:var(--ink); color:#fff; margin-bottom:14px;}
+.mc-sum > div{padding:12px 14px; border-right:1px solid rgba(255,255,255,.15);}
+.mc-sum > div:last-child{border-right:none;}
+.mc-sum .lbl{display:block; font-family:var(--mono); font-size:9px; letter-spacing:.18em;
+  text-transform:uppercase; color:rgba(255,255,255,.6); margin-bottom:5px;}
+.mc-sum .val{display:block; font-family:var(--serif); font-size:18px; font-weight:900;}
+.mc-sum .val.alert{color:var(--accent-2);}
+.mc-table{width:100%; border-collapse:collapse; font-size:12.5px;}
+.mc-table th{background:var(--neutral); border:1px solid var(--ink); padding:8px 6px; font-weight:700; font-size:11.5px;}
+.mc-table td{border:1px solid rgba(14,26,43,.25); padding:7px 6px;}
+.mc-table td.num, .mc-table th.num{text-align:right; font-family:var(--mono);}
+.mc-table td.ctr, .mc-table th.ctr{text-align:center;}
+.mc-table td.mc-dt{font-size:11px; color:var(--ink-2);}
+.mc-table tr.mc-excluded{background:#F2F2F2; color:#999;}
+.mc-badge{display:inline-block; padding:2px 8px; font-size:10.5px; font-weight:700; border-radius:2px;}
+.mc-badge.ok{background:var(--good-bg); color:var(--good); border:1px solid var(--good);}
+.mc-badge.skip{background:#EEE; color:#777; border:1px solid #BBB;}
+.mc-typemap{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;}
+.mc-tm{display:inline-flex; align-items:center; gap:5px; background:#fff; border:1px solid var(--ink-2); padding:4px 8px; font-size:11.5px;}
+.mc-tm select{border:1px solid var(--ink-2); font-size:11.5px; padding:2px 4px; font-family:var(--sans);}
 .modal{
   background:#FFFFFF; border:2px solid var(--ink);
   width:100%; max-width:1200px; margin:auto;
@@ -642,12 +679,15 @@ table.worst td.ploss-amount{
 <div class="uploader" id="uploader">
   <div class="icon">📊</div>
   <h1>품질현황 자동 보고서 생성기</h1>
-  <div class="sub">(주)태진다이텍 · 품질관리팀 · v24 (1~6월 실적 내장 · 다중 파일 누적 · 백업/복원)</div>
+  <div class="sub">(주)태진다이텍 · 품질관리팀 · v25 (불량이력 DB 월마감 연동 · 1~6월 실적 내장 · 백업/복원)</div>
   
   <input type="file" id="fileInput" accept=".xlsx,.xls" multiple style="display:none">
   <div class="btn-row">
     <button class="btn" onclick="document.getElementById('fileInput').click()">
       📁 불량이력 엑셀 파일 선택 (여러 개 가능)
+    </button>
+    <button class="btn" style="background:var(--good); box-shadow:4px 4px 0 var(--ink)" onclick="openMonthClose()">
+      🔗 월마감 자동 생성 (불량이력 DB 연동)
     </button>
     <button class="btn" style="background:var(--accent-2); color:var(--ink)" onclick="generateReportFromCumulative()">
       📊 누적 데이터로 보고서 보기
@@ -679,6 +719,7 @@ table.worst td.ploss-amount{
     📅 파일 업로드 → <b>누적 병합만 수행</b> (여러 파일 이어서 업로드 가능) → 📊 <b>[누적 데이터로 보고서 보기]</b>로 보고서 생성<br>
     🔁 <b>거래처 통합 매핑</b>: SKF Raceway / 레이스웨이 / SKF SBC → 모두 <b>Raceway</b>로 통합<br>
     💰 <b>단가</b>는 거래처별 마스터에서 자동 매칭 · 매년 단가 변경 시 ⚙️ 버튼으로 관리<br>
+    🔗 <b>월마감 자동 생성</b>: 불량관리 시스템(외관불량 이력 DB)에서 해당 월 실적을 직접 불러와 누적 반영 (<b>세동산업은 기존대로 수기 입력</b>)<br>
     📊 <b>월별 손실비용 종합표</b>: Image 2 양식 그대로 유지
   </div>
   
@@ -818,6 +859,68 @@ table.worst td.ploss-amount{
       </div>
       <div style="display:flex; gap:8px;">
         <button class="btn" style="background:#999;" onclick="closeManualEntry()">닫기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 월마감 자동 연동 모달 ============ -->
+<div class="modal-overlay" id="monthCloseModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>🔗 월마감 자동 생성 — 불량관리 시스템(외관불량 이력) 연동</h2>
+      <button class="close-btn" onclick="closeMonthClose()">✕ 닫기</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="master-info-bar" style="background:#E2EFE5; border-color:var(--good);">
+        <div class="info-cell">💡 대상 월의 <b>외관불량 이력(defect_history)</b>을 직접 불러와 거래처별로 집계 → 월별 누적에 반영합니다.</div>
+        <div class="info-cell">
+          <button class="btn" style="padding:6px 12px; font-size:11.5px; background:var(--ink-2)" onclick="mcToggleCfg()">⚙ DB 연결설정</button>
+        </div>
+      </div>
+
+      <div class="mc-cfg" id="mcCfgBox" style="display:none">
+        <label style="font-size:11px; font-weight:700; color:var(--ink-2)">SUPABASE URL</label>
+        <input type="text" id="mcSbUrl" placeholder="https://xxxx.supabase.co">
+        <label style="font-size:11px; font-weight:700; color:var(--ink-2)">ANON KEY</label>
+        <input type="text" id="mcSbKey" placeholder="eyJhbGciOi...">
+        <div style="display:flex; gap:8px; align-items:center">
+          <button class="btn" style="padding:6px 12px; font-size:11.5px; background:var(--good)" onclick="mcSaveConfig()">💾 저장</button>
+          <button class="btn" style="padding:6px 12px; font-size:11.5px; background:var(--blue)" onclick="mcTestConn()">🔌 연결 테스트</button>
+          <span id="mcCfgStatus" style="font-size:11.5px; color:var(--ink-2)"></span>
+        </div>
+      </div>
+
+      <div class="mc-row">
+        <div>
+          <label>대상 월 (마감월)</label>
+          <input type="month" id="mcMonth">
+        </div>
+        <div>
+          <button class="btn" style="width:100%; background:var(--blue)" onclick="mcFetchMonth()">🔍 DB 조회 · 미리보기</button>
+        </div>
+      </div>
+
+      <div class="mc-opts">
+        <label><input type="checkbox" id="mcSkipSedong" checked onchange="mcRefreshPreview()">
+          <b>세동산업 제외</b> (기존대로 수기 입력 유지)</label>
+        <label><input type="checkbox" id="mcSkipEtc" checked onchange="mcRefreshPreview()">
+          <b>미분류 거래처 제외</b> (고객사 미지정 기종)</label>
+      </div>
+
+      <div id="mcResult"></div>
+
+    </div>
+    <div class="modal-footer">
+      <div style="font-size:12px; color:var(--ink-2);">
+        ⚠ 반영 시 <b>해당 월 · 해당 거래처</b>의 기존 누적값만 덮어씁니다 (다른 거래처·다른 월은 보존)
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" style="background:#999;" onclick="closeMonthClose()">닫기</button>
+        <button class="btn" id="mcApplyBtn" style="background:var(--good);" onclick="mcApplyToCumulative()" disabled>
+          ✅ 월마감 확정 · 누적 반영
+        </button>
       </div>
     </div>
   </div>
@@ -4877,6 +4980,379 @@ function applyManualDataToSummary(summary, info){
   
   return summary;
 }
+
+
+// ============================================================
+// 🔗 월마감 자동 연동 모듈 (v25)
+// 불량관리 시스템(Supabase · defect_history) → 월별 누적 자동 생성
+// - 세동산업은 자동 반영 대상에서 제외 (기존대로 수기 입력 유지)
+// ============================================================
+
+const MC_SB_DEFAULT = {
+  url: 'https://omngtyewdaqpphnzeate.supabase.co',
+  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tbmd0eWV3ZGFxcHBobnplYXRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4ODk4ODksImV4cCI6MjA5MDQ2NTg4OX0.Zxur3t02JHtOcXforCMSwO3i2mMaf5sViE0tXXUC0-s'
+};
+
+function mcGetCfg(){
+  try{ const s = localStorage.getItem('quality_sb_cfg_v1'); if(s) return JSON.parse(s); }catch(e){}
+  try{ const s = localStorage.getItem('DEFECT_SB_CFG'); if(s) return JSON.parse(s); }catch(e){}   // 불량관리 시스템과 동일 브라우저면 그 설정 재사용
+  return Object.assign({}, MC_SB_DEFAULT);
+}
+function mcSaveCfg(cfg){
+  try{ localStorage.setItem('quality_sb_cfg_v1', JSON.stringify(cfg)); }catch(e){}
+}
+function mcHeaders(){
+  const c = mcGetCfg();
+  return {'apikey': c.key, 'Authorization': 'Bearer ' + c.key, 'Content-Type': 'application/json'};
+}
+function mcUrl(table, q){
+  const c = mcGetCfg();
+  return (c.url || MC_SB_DEFAULT.url).replace(/\/$/, '') + '/rest/v1/' + table + (q ? '?' + q : '');
+}
+// 1000건 단위 페이징 조회 (월 데이터가 많아도 누락 없음)
+async function mcSelectAll(table, query, pageSize){
+  const size = pageSize || 1000;
+  let out = [], offset = 0;
+  for(let guard = 0; guard < 100; guard++){
+    const q = (query ? query + '&' : '') + 'select=*&limit=' + size + '&offset=' + offset;
+    const r = await fetch(mcUrl(table, q), {headers: mcHeaders()});
+    if(!r.ok) throw new Error(table + ' 조회 실패 (' + r.status + ') ' + (await r.text()).slice(0,200));
+    const rows = await r.json();
+    out = out.concat(rows);
+    if(rows.length < size) break;
+    offset += size;
+  }
+  return out;
+}
+
+// ============================================================
+// 불량유형 매핑 (불량관리 시스템 유형 → 보고서 7종)
+// ============================================================
+const MC_DEFAULT_TYPEMAP = {
+  '찍힘':'찍힘','타흔':'찍힘','눌림':'찍힘','압흔':'찍힘','타점':'찍힘','찍임':'찍힘','dent':'찍힘',
+  '휨':'휨','변형':'휨','휘어짐':'휨','굽힘':'휨','벤딩':'휨','높이':'휨','높이편차':'휨','평면도':'휨','진원도':'휨','편차':'휨',
+  '기스':'기스','스크래치':'기스','스크레치':'기스','긁힘':'기스','scratch':'기스','찍힘기스':'기스',
+  '크랙':'크랙','터짐':'크랙','균열':'크랙','깨짐':'크랙','파손':'크랙','절손':'크랙','crack':'크랙',
+  '얼룩':'얼룩','이물':'얼룩','오염':'얼룩','녹':'얼룩','녹발생':'얼룩','발청':'얼룩','도포':'얼룩','피막':'얼룩','유분':'얼룩','변색':'얼룩',
+  '소재':'소재','원자재':'소재','소재불량':'소재','자재':'소재','핀홀':'소재','재질':'소재','흠집소재':'소재',
+  '치수':'기타','버':'기타','burr':'기타','미성형':'기타','조립':'기타','기타':'기타'
+};
+function mcGetTypeMap(){
+  const map = Object.assign({}, MC_DEFAULT_TYPEMAP);
+  try{
+    const s = localStorage.getItem('quality_mc_typemap_v1');
+    if(s) Object.assign(map, JSON.parse(s));
+  }catch(e){}
+  return map;
+}
+function mcSaveTypeOverride(dbType, target){
+  let ov = {};
+  try{ ov = JSON.parse(localStorage.getItem('quality_mc_typemap_v1') || '{}'); }catch(e){}
+  ov[String(dbType).trim().toLowerCase()] = target;
+  try{ localStorage.setItem('quality_mc_typemap_v1', JSON.stringify(ov)); }catch(e){}
+}
+// 반환: {type: 7종 중 하나, exact: 정확매칭 여부}
+function mcMapDefectType(name, category){
+  const map = mcGetTypeMap();
+  const raw = String(name || '').trim();
+  const key = raw.toLowerCase();
+  if(map[key]) return {type: map[key], exact: true};
+  if(map[raw]) return {type: map[raw], exact: true};
+  // 부분 문자열 매칭 (긴 키 우선)
+  const keys = Object.keys(map).sort((a,b) => b.length - a.length);
+  for(const k of keys){
+    if(k.length >= 2 && key.indexOf(k) >= 0) return {type: map[k], exact: false};
+  }
+  // 불량유형 마스터의 category로 2차 시도
+  const cat = String(category || '').trim().toLowerCase();
+  if(cat && map[cat]) return {type: map[cat], exact: false};
+  return {type: '기타', exact: false};
+}
+
+// ============================================================
+// 월마감 모달 제어
+// ============================================================
+let MC_RESULT = null;   // {monthKey, vendors, stats, warnings}
+
+function openMonthClose(){
+  const cfg = mcGetCfg();
+  document.getElementById('mcSbUrl').value = cfg.url || '';
+  document.getElementById('mcSbKey').value = cfg.key || '';
+  // 기본값: 지난 달
+  const now = new Date();
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const el = document.getElementById('mcMonth');
+  if(!el.value) el.value = prev.getFullYear() + '-' + String(prev.getMonth() + 1).padStart(2, '0');
+  document.getElementById('mcResult').innerHTML =
+    '<div class="mc-hint">📅 대상 월을 선택하고 <b>[DB 조회 · 미리보기]</b>를 눌러주세요.</div>';
+  document.getElementById('mcApplyBtn').disabled = true;
+  MC_RESULT = null;
+  document.getElementById('monthCloseModal').classList.add('show');
+}
+function closeMonthClose(){
+  document.getElementById('monthCloseModal').classList.remove('show');
+}
+function mcSaveConfig(){
+  const url = document.getElementById('mcSbUrl').value.trim();
+  const key = document.getElementById('mcSbKey').value.trim();
+  if(!url || !key){ alert('URL과 KEY를 모두 입력해 주세요.'); return; }
+  mcSaveCfg({url: url, key: key});
+  document.getElementById('mcCfgStatus').textContent = '✅ 저장됨';
+}
+async function mcTestConn(){
+  const st = document.getElementById('mcCfgStatus');
+  st.textContent = '연결 테스트 중...';
+  try{
+    const r = await fetch(mcUrl('defect_history', 'select=id&limit=1'), {headers: mcHeaders()});
+    if(!r.ok) throw new Error(r.status);
+    st.textContent = '✅ 연결 성공';
+    st.style.color = 'var(--good)';
+  }catch(e){
+    st.textContent = '❌ 연결 실패: ' + e.message;
+    st.style.color = 'var(--accent)';
+  }
+}
+function mcToggleCfg(){
+  const b = document.getElementById('mcCfgBox');
+  b.style.display = (b.style.display === 'none' || !b.style.display) ? 'block' : 'none';
+}
+
+// ============================================================
+// ⭐ 핵심: 해당 월 defect_history 조회 → 거래처별 집계
+// ============================================================
+async function mcFetchMonth(){
+  const ym = document.getElementById('mcMonth').value;
+  if(!ym){ alert('대상 월을 선택해 주세요.'); return; }
+  const [y, m] = ym.split('-').map(Number);
+  const from = `${y}-${String(m).padStart(2,'0')}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  const to = `${y}-${String(m).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+
+  const res = document.getElementById('mcResult');
+  res.innerHTML = '<div class="mc-hint">⏳ 불량관리 DB 조회 중... (' + from + ' ~ ' + to + ')</div>';
+  document.getElementById('mcApplyBtn').disabled = true;
+
+  try{
+    const [hist, models, genModels, itemMap, defTypes] = await Promise.all([
+      mcSelectAll('defect_history', 'defect_date=gte.' + from + '&defect_date=lte.' + to + '&order=defect_date.asc'),
+      mcSelectAll('defect_model', 'order=id.asc').catch(() => []),
+      mcSelectAll('general_model_tj', 'order=id.asc').catch(() => []),
+      mcSelectAll('model_item_map', 'order=model_name.asc').catch(() => []),
+      mcSelectAll('defect_type', 'order=id.asc').catch(() => [])
+    ]);
+
+    if(!hist.length){
+      res.innerHTML = '<div class="mc-warn">⚠ 해당 월(' + ym + ')에 등록된 외관불량 이력이 없습니다.</div>';
+      return;
+    }
+
+    // --- 기종 → 고객사 / 품번 매핑 테이블 구성 ---
+    const custOf = {}, itemOf = {};
+    genModels.forEach(r => { if(r.model_name && r.customer) custOf[r.model_name] = r.customer; });
+    models.forEach(r => { if(r.model_name && r.customer) custOf[r.model_name] = r.customer; });
+    itemMap.forEach(r => {
+      if(!r.model_name) return;
+      if(r.item_code) itemOf[r.model_name] = r.item_code;
+      if(r.customer && !custOf[r.model_name]) custOf[r.model_name] = r.customer;
+    });
+    const typeCat = {};
+    defTypes.forEach(r => { if(r.type_name) typeCat[r.type_name] = r.category || ''; });
+
+    // --- 행 단위 변환 ---
+    const vendorMap = {};
+    const noCustomer = new Set();      // 고객사 미지정 기종
+    const unmatchedParts = new Set();  // 단가 미매칭 품번
+    const fuzzyTypes = {};             // 정확매칭 안 된 불량유형 → 매핑결과
+    let skipSys = 0;
+
+    hist.forEach(r => {
+      const dtRaw = String(r.defect_type || '').trim();
+      if(dtRaw.startsWith('__')){ skipSys++; return; }          // 시스템 예약행 제외
+      const model = String(r.model_name || '').trim();
+      const part = itemOf[model] || model;
+      const cust = custOf[model] || '';
+      if(!cust && model) noCustomer.add(model);
+
+      const vendorName = cust ? normalizeVendorName(cust)
+                              : (inferVendorFromPart(part) || '미분류');
+
+      const priceInfo = lookupPriceWithFallback(part, vendorName);
+      if((priceInfo.source === 'none' || priceInfo.source === 'vendor-avg') && part) unmatchedParts.add(part);
+
+      const row = {
+        date: new Date(r.defect_date),
+        part: part,
+        partName: model,
+        side: String(r.side || ''),
+        worker: String(r.worker || ''),
+        inspection: Number(r.inspect_qty) || 0,
+        unitPrice: priceInfo.price,
+        priceMatched: priceInfo.matched,
+        priceSource: priceInfo.source,
+        defects: {}
+      };
+      DEFECT_COLS.forEach(d => row.defects[d] = 0);
+
+      const qty = Number(r.qty) || 0;
+      if(dtRaw && dtRaw !== '양품' && qty > 0){
+        const mp = mcMapDefectType(dtRaw, typeCat[dtRaw]);
+        row.defects[mp.type] += qty;
+        if(!mp.exact) fuzzyTypes[dtRaw] = mp.type;
+      }
+
+      if(!vendorMap[vendorName]) vendorMap[vendorName] = [];
+      vendorMap[vendorName].push(row);
+    });
+
+    const vendors = Object.entries(vendorMap).map(([name, rows]) => ({name, rows}));
+    MC_RESULT = {
+      monthKey: ym, from, to, vendors,
+      histCount: hist.length, skipSys,
+      noCustomer: Array.from(noCustomer),
+      unmatchedParts: Array.from(unmatchedParts),
+      fuzzyTypes
+    };
+    mcRenderPreview();
+  }catch(e){
+    res.innerHTML = '<div class="mc-warn">❌ 조회 실패: ' + escapeHtml(e.message) +
+      '<br><span style="font-size:11px">· 인터넷 연결 / Supabase URL·KEY를 확인해 주세요 (⚙ DB 연결설정)</span></div>';
+  }
+}
+
+// ============================================================
+// 미리보기 렌더링
+// ============================================================
+function mcRenderPreview(){
+  if(!MC_RESULT) return;
+  const R = MC_RESULT;
+  const skipSedong = document.getElementById('mcSkipSedong').checked;
+  const skipEtc = document.getElementById('mcSkipEtc').checked;
+
+  const rowsHtml = [];
+  let tI = 0, tD = 0, tL = 0;
+  const applyList = [];
+
+  R.vendors.slice().sort((a,b) => a.name.localeCompare(b.name)).forEach(v => {
+    const insp = v.rows.reduce((a,r) => a + r.inspection, 0);
+    let def = 0, loss = 0;
+    const dt = {}; DEFECT_COLS.forEach(d => dt[d] = 0);
+    v.rows.forEach(r => {
+      let s = 0;
+      DEFECT_COLS.forEach(d => { dt[d] += r.defects[d]; s += r.defects[d]; });
+      def += s; loss += s * r.unitPrice;
+    });
+    const ppm = insp > 0 ? Math.round(def / insp * 1000000) : 0;
+
+    let status = '<span class="mc-badge ok">반영</span>';
+    let excluded = false;
+    if(skipSedong && v.name === '세동산업'){ status = '<span class="mc-badge skip">제외(수기)</span>'; excluded = true; }
+    else if(skipEtc && v.name === '미분류'){ status = '<span class="mc-badge skip">제외(미분류)</span>'; excluded = true; }
+
+    if(!excluded){ applyList.push(v); tI += insp; tD += def; tL += loss; }
+
+    rowsHtml.push(`<tr class="${excluded ? 'mc-excluded' : ''}">
+      <td><b>${escapeHtml(v.name)}</b></td>
+      <td class="num">${insp.toLocaleString()}</td>
+      <td class="num">${def.toLocaleString()}</td>
+      <td class="num"><b>${ppm.toLocaleString()}</b></td>
+      <td class="num">${Math.round(loss).toLocaleString()}</td>
+      <td class="mc-dt">${DEFECT_COLS.filter(d => dt[d] > 0).map(d => d + ' ' + dt[d].toLocaleString()).join(' · ') || '—'}</td>
+      <td class="ctr">${status}</td>
+    </tr>`);
+  });
+
+  const tPpm = tI > 0 ? Math.round(tD / tI * 1000000) : 0;
+
+  // 기존 누적 데이터 존재 여부 경고
+  const exist = CUMULATIVE_DATA[R.monthKey] ? Object.keys(CUMULATIVE_DATA[R.monthKey]) : [];
+  const overwrite = exist.filter(v => applyList.some(a => a.name === v));
+  const keep = exist.filter(v => !applyList.some(a => a.name === v));
+
+  let warn = '';
+  if(overwrite.length){
+    warn += `<div class="mc-warn">⚠ <b>${R.monthKey}</b> 기존 누적값이 있는 거래처는 <b>덮어쓰기</b> 됩니다 → ${overwrite.map(escapeHtml).join(', ')}</div>`;
+  }
+  if(keep.length){
+    warn += `<div class="mc-ok">🔒 아래 거래처의 기존 누적값은 <b>그대로 보존</b>됩니다 → ${keep.map(escapeHtml).join(', ')}</div>`;
+  }
+  if(R.noCustomer.length){
+    warn += `<div class="mc-warn">⚠ <b>고객사 미지정 기종 ${R.noCustomer.length}종</b> (불량관리 시스템 → 설정 → 기종관리에서 고객사 지정 필요)<br>
+      <span class="mc-small">${R.noCustomer.slice(0,20).map(escapeHtml).join(', ')}${R.noCustomer.length > 20 ? ' 외 ' + (R.noCustomer.length - 20) + '종' : ''}</span></div>`;
+  }
+  if(R.unmatchedParts.length){
+    warn += `<div class="mc-warn">💰 <b>단가 미매칭 품번 ${R.unmatchedParts.length}건</b> (거래처 평균단가로 임시 계산 · ⚙ 단가 마스터에서 등록 권장)<br>
+      <span class="mc-small">${R.unmatchedParts.slice(0,20).map(escapeHtml).join(', ')}${R.unmatchedParts.length > 20 ? ' 외 ' + (R.unmatchedParts.length - 20) + '건' : ''}</span></div>`;
+  }
+  const fz = Object.keys(R.fuzzyTypes);
+  if(fz.length){
+    warn += `<div class="mc-warn">🏷 <b>불량유형 자동추정 ${fz.length}종</b> — 아래에서 직접 지정할 수 있습니다.
+      <div class="mc-typemap">${fz.map(t => `
+        <span class="mc-tm">
+          <b>${escapeHtml(t)}</b> →
+          <select onchange="mcChangeType('${escapeHtml(t).replace(/'/g,'&#39;')}', this.value)">
+            ${DEFECT_COLS.map(d => `<option value="${d}"${R.fuzzyTypes[t] === d ? ' selected' : ''}>${d}</option>`).join('')}
+          </select>
+        </span>`).join('')}</div></div>`;
+  }
+
+  document.getElementById('mcResult').innerHTML = `
+    <div class="mc-sum">
+      <div><span class="lbl">대상 기간</span><span class="val">${R.from} ~ ${R.to}</span></div>
+      <div><span class="lbl">이력 건수</span><span class="val">${R.histCount.toLocaleString()} 건</span></div>
+      <div><span class="lbl">검사수 합계</span><span class="val">${tI.toLocaleString()} EA</span></div>
+      <div><span class="lbl">불량수 합계</span><span class="val">${tD.toLocaleString()} EA</span></div>
+      <div><span class="lbl">종합 PPM</span><span class="val alert">${tPpm.toLocaleString()}</span></div>
+      <div><span class="lbl">손실비용</span><span class="val">${Math.round(tL).toLocaleString()} 원</span></div>
+    </div>
+    <table class="mc-table">
+      <thead><tr>
+        <th>거래처</th><th class="num">검사수(EA)</th><th class="num">불량수(EA)</th>
+        <th class="num">PPM</th><th class="num">손실비용(원)</th><th>불량유형별</th><th class="ctr">처리</th>
+      </tr></thead>
+      <tbody>${rowsHtml.join('')}</tbody>
+    </table>
+    ${warn}`;
+
+  document.getElementById('mcApplyBtn').disabled = applyList.length === 0;
+  MC_RESULT.applyList = applyList;
+}
+
+// 불량유형 재지정 → 재계산
+function mcChangeType(dbType, target){
+  mcSaveTypeOverride(dbType, target);
+  mcFetchMonth();   // 재조회하여 반영 (매핑표 기준 재계산)
+}
+
+// 옵션 체크박스 변경 시 미리보기만 갱신
+function mcRefreshPreview(){ if(MC_RESULT) mcRenderPreview(); }
+
+// ============================================================
+// ⭐ 월마감 확정 → 누적 데이터에 반영
+// ============================================================
+function mcApplyToCumulative(){
+  if(!MC_RESULT || !MC_RESULT.applyList || !MC_RESULT.applyList.length){
+    alert('반영할 데이터가 없습니다.'); return;
+  }
+  const R = MC_RESULT;
+  const names = R.applyList.map(v => v.name).join(', ');
+  if(!confirm(`【${R.monthKey} 월마감】\n\n다음 거래처의 ${R.monthKey} 누적 데이터를 생성/갱신합니다.\n→ ${names}\n\n` +
+              (document.getElementById('mcSkipSedong').checked ? '※ 세동산업은 기존대로 수기 입력으로 유지됩니다.\n' : '') +
+              '\n진행하시겠습니까?')) return;
+
+  try{
+    mergeIntoCumulative(R.applyList);
+    updateCumulativeStatus();
+    document.getElementById('mcResult').insertAdjacentHTML('afterbegin',
+      `<div class="mc-ok" style="margin-bottom:10px">✅ <b>${R.monthKey} 월마감 반영 완료</b> — ${names}</div>`);
+    if(confirm(`✅ ${R.monthKey} 월마감 반영이 완료되었습니다.\n\n지금 바로 보고서를 생성할까요?`)){
+      closeMonthClose();
+      generateReportFromCumulative();
+    }
+  }catch(e){
+    alert('반영 실패: ' + e.message);
+  }
+}
+
 
 // 페이지 로드 시 마스터 상태 표시
 document.addEventListener('DOMContentLoaded', () => {
