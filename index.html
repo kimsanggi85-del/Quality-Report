@@ -529,6 +529,7 @@ table.worst td.ploss-amount{
 .home-tools a:hover{color:var(--ink); border-bottom-style:solid;}
 .home-tools a.danger{color:var(--accent); border-bottom-color:var(--accent);}
 .home-tools #masterStatus{margin-left:auto; color:#999; font-size:10.5px;}
+.home-tools #qsStatus{font-size:10.5px; margin-left:6px;}
 
 /* ===== 월마감 자동 연동 ===== */
 .mc-row{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; align-items:end; margin-bottom:12px;}
@@ -750,10 +751,13 @@ table.worst td.ploss-amount{
     <a onclick="openManualEntry()">수기 입력</a>
     <a onclick="openPriceMaster()">단가 마스터</a>
     <a onclick="openDataCheck()">데이터 점검</a>
+    <a onclick="qsPush()">☁ 서버 저장</a>
+    <a onclick="qsPullManual()">☁ 서버 불러오기</a>
     <a onclick="exportCumulativeBackup()">백업</a>
     <a onclick="document.getElementById('restoreInput').click()">복원</a>
     <a onclick="restoreSeedData()">시드 복원</a>
     <a class="danger" onclick="resetCumulativeData()">초기화</a>
+    <span id="qsStatus" style="color:#999"></span>
     <span id="masterStatus"></span>
   </div>
 </div>
@@ -766,6 +770,9 @@ table.worst td.ploss-amount{
     <div style="display:flex; gap:8px;">
       <button class="btn" onclick="openMonthClose()" style="padding:8px 16px; font-size:12px; background:var(--good);">
         🔗 월마감
+      </button>
+      <button class="btn" onclick="qsPullManual()" style="padding:8px 16px; font-size:12px; background:var(--blue);">
+        ☁ 서버 동기화
       </button>
       <button class="btn" onclick="goBackToUploader()" style="padding:8px 16px; font-size:12px; background:var(--ink-2);">
         📋 실적요약 · 관리
@@ -1075,6 +1082,7 @@ function saveVendorMaster(){
 }
 function saveManualData(){
   try { localStorage.setItem('quality_manual_data_v5', JSON.stringify(MANUAL_DATA)); } catch(e) {}
+  try{ if(typeof qsSchedulePush === 'function') qsSchedulePush(); }catch(e){}
 }
 
 // 평탄화된 단가 맵 (룩업용 - 모든 거래처 단가 통합)
@@ -1345,6 +1353,7 @@ function saveCumulativeData(){
   // ⭐ v23: 저장 실패(용량 초과 등)를 조용히 삼키지 않고 즉시 경고 → 데이터 유실 방지
   try {
     localStorage.setItem('quality_cumulative_v6', JSON.stringify(CUMULATIVE_DATA));
+    try{ qsSchedulePush(); }catch(e){}
     return true;
   } catch(e) {
     console.error('누적 저장 실패:', e);
@@ -5481,6 +5490,134 @@ function mcApplyToCumulative(){
 
 
 // ============================================================
+// ☁ 클라우드 동기화 — 누적 데이터를 Supabase에 저장 (v26)
+//   브라우저/주소(로컬 파일 ↔ GitHub Pages)가 달라도 동일한 실적 유지
+// ============================================================
+const QS_GROUP = 'quality_state_v1';
+let QS_BUSY = false;
+let QS_TIMER = null;
+let QS_ADOPTING = false;
+
+function qsSetStatus(msg, color){
+  const el = document.getElementById('qsStatus');
+  if(el){ el.textContent = msg; el.style.color = color || '#999'; }
+}
+function qsLocalAt(){
+  try{ return localStorage.getItem('quality_sync_at') || ''; }catch(e){ return ''; }
+}
+function qsSetLocalAt(v){
+  try{ localStorage.setItem('quality_sync_at', v); }catch(e){}
+}
+
+// 서버에서 불러오기
+async function qsPull(){
+  const r = await fetch(mcUrl('common_code', 'code_group=eq.' + QS_GROUP + '&select=*&limit=1'),
+                        {headers: mcHeaders()});
+  if(!r.ok) throw new Error('서버 조회 실패 ' + r.status);
+  const d = await r.json();
+  if(!d.length || !d[0].code_value) return null;
+  return JSON.parse(d[0].code_value);
+}
+
+// 서버에 저장
+async function qsPush(silent){
+  if(QS_BUSY) return false;
+  QS_BUSY = true;
+  const at = new Date().toISOString();
+  try{
+    const payload = {
+      updatedAt: at,
+      cumulative: CUMULATIVE_DATA,
+      manual: MANUAL_DATA,
+      master: VENDOR_MASTER,
+      alias: VENDOR_ALIAS,
+      complaint: COMPLAINT_DATA,
+      claim: CLAIM_DATA,
+      personalLoss: PERSONAL_LOSS,
+      modelVendor: mcGetModelVendor()
+    };
+    const body = JSON.stringify(payload);
+    if(!silent) qsSetStatus('☁ 저장 중...', 'var(--ink-2)');
+    await fetch(mcUrl('common_code', 'code_group=eq.' + QS_GROUP), {method: 'DELETE', headers: mcHeaders()});
+    const r = await fetch(mcUrl('common_code'), {
+      method: 'POST', headers: mcHeaders(),
+      body: JSON.stringify([{code_group: QS_GROUP, code_value: body, sort_order: 0}])
+    });
+    if(!r.ok) throw new Error(r.status + ' ' + (await r.text()).slice(0, 120));
+    qsSetLocalAt(at);
+    qsSetStatus('☁ 서버 저장됨 ' + at.slice(0, 16).replace('T', ' '), 'var(--good)');
+    return true;
+  }catch(e){
+    qsSetStatus('☁ 서버 저장 실패 — ' + e.message, 'var(--accent)');
+    if(!silent) alert('서버 저장 실패: ' + e.message);
+    return false;
+  }finally{ QS_BUSY = false; }
+}
+
+// 저장 직후 자동 업로드 (연속 저장은 묶어서 1회)
+function qsSchedulePush(){
+  if(QS_ADOPTING) return;   // 서버 자료 적용 중에는 되돌려 올리지 않음
+  if(QS_TIMER) clearTimeout(QS_TIMER);
+  QS_TIMER = setTimeout(() => qsPush(true), 1200);
+}
+
+// 서버 데이터를 현재 상태로 적용
+function qsAdopt(p){
+  QS_ADOPTING = true;
+  try{
+  if(p.cumulative){ CUMULATIVE_DATA = p.cumulative; try{ localStorage.setItem('quality_cumulative_v6', JSON.stringify(CUMULATIVE_DATA)); }catch(e){} }
+  if(p.manual){ MANUAL_DATA = p.manual; saveManualData(); }
+  if(p.master){ VENDOR_MASTER = p.master; saveVendorMaster(); refreshPriceLookup(); }
+  if(p.alias){ VENDOR_ALIAS = p.alias; saveVendorAlias(); }
+  if(p.complaint){ COMPLAINT_DATA = p.complaint; saveComplaintData(); }
+  if(p.claim){ CLAIM_DATA = p.claim; saveClaimData(); }
+  if(p.personalLoss){ PERSONAL_LOSS = p.personalLoss; savePersonalLoss(); }
+  if(p.modelVendor){ try{ localStorage.setItem('quality_model_vendor_v1', JSON.stringify(p.modelVendor)); }catch(e){} }
+  qsSetLocalAt(p.updatedAt || '');
+  }finally{ QS_ADOPTING = false; }
+}
+
+// 수동: 서버에서 불러오기
+async function qsPullManual(){
+  qsSetStatus('☁ 불러오는 중...', 'var(--ink-2)');
+  try{
+    const p = await qsPull();
+    if(!p){ qsSetStatus('☁ 서버에 저장된 자료 없음', 'var(--accent)'); alert('서버에 저장된 누적 데이터가 없습니다.\n먼저 [☁ 서버 저장]을 실행해 주세요.'); return; }
+    const mk = Object.keys(p.cumulative || {}).sort();
+    if(!confirm(`서버 자료를 불러옵니다.\n\n· 저장시각: ${(p.updatedAt || '').slice(0,16).replace('T',' ')}\n· 기간: ${mk[0] || '-'} ~ ${mk[mk.length-1] || '-'} (${mk.length}개월)\n\n현재 이 브라우저의 누적 데이터는 서버 자료로 대체됩니다.`)) return;
+    qsAdopt(p);
+    qsSetStatus('☁ 서버에서 불러옴 ' + (p.updatedAt || '').slice(0,16).replace('T',' '), 'var(--good)');
+    updateCumulativeStatus();
+    generateReportFromCumulative();
+  }catch(e){
+    qsSetStatus('☁ 불러오기 실패 — ' + e.message, 'var(--accent)');
+    alert('불러오기 실패: ' + e.message);
+  }
+}
+
+// 페이지 로드 시 자동 동기화 (서버가 더 최신이면 자동 적용)
+async function qsAutoSync(){
+  try{
+    const p = await qsPull();
+    if(!p) return false;
+    const localAt = qsLocalAt();
+    const localMonths = Object.keys(CUMULATIVE_DATA).length;
+    const serverMonths = Object.keys(p.cumulative || {}).length;
+    // 서버가 더 최신이거나, 로컬이 시드뿐인데 서버에 더 많은 월이 있으면 적용
+    if((p.updatedAt && p.updatedAt > localAt) || serverMonths > localMonths){
+      qsAdopt(p);
+      qsSetStatus('☁ 서버 자료 적용됨 ' + (p.updatedAt || '').slice(0,16).replace('T',' '), 'var(--good)');
+      return true;
+    }
+    qsSetStatus('☁ 최신 상태', '#999');
+    return false;
+  }catch(e){
+    qsSetStatus('☁ 오프라인 (이 브라우저 저장분 사용)', '#999');
+    return false;
+  }
+}
+
+// ============================================================
 // 🏠 홈 대시보드 — 누적 실적 즉시 표시 (v25)
 // ============================================================
 function toggleHomeHelp(){
@@ -5707,7 +5844,13 @@ function openDataCheck(){
 function closeDataCheck(){ document.getElementById('dataCheckModal').classList.remove('show'); }
 
 // 페이지 로드 시: 누적 실적이 있으면 보고서를 바로 표시
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  updateMasterStatusBar();
+  updateCumulativeStatus();
+  // ☁ 서버 자료가 더 최신이면 먼저 적용 (주소/브라우저가 달라도 동일 실적 유지)
+  try{
+    await Promise.race([qsAutoSync(), new Promise(r => setTimeout(r, 6000))]);
+  }catch(e){}
   updateMasterStatusBar();
   updateCumulativeStatus();
   try{
