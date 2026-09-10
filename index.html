@@ -942,7 +942,7 @@ table.worst td.ploss-amount{
       <div class="mc-opts">
         <label><input type="checkbox" id="mcSkipSedong" checked onchange="mcRefreshPreview()">
           <b>세동산업 제외</b> (기존대로 수기 입력 유지)</label>
-        <label><input type="checkbox" id="mcSkipEtc" checked onchange="mcRefreshPreview()">
+        <label><input type="checkbox" id="mcSkipEtc" onchange="mcRefreshPreview()">
           <b>미분류 거래처 제외</b> (고객사 미지정 기종)</label>
       </div>
 
@@ -5094,6 +5094,25 @@ function mcSaveTypeOverride(dbType, target){
   ov[String(dbType).trim().toLowerCase()] = target;
   try{ localStorage.setItem('quality_mc_typemap_v1', JSON.stringify(ov)); }catch(e){}
 }
+// ============================================================
+// 기종 → 거래처 수동 배정 (고객사 미지정 기종 보완)
+// ============================================================
+function mcGetModelVendor(){
+  try{ return JSON.parse(localStorage.getItem('quality_model_vendor_v1') || '{}'); }catch(e){ return {}; }
+}
+function mcSetModelVendor(model, vendor){
+  const m = mcGetModelVendor();
+  if(vendor) m[model] = vendor; else delete m[model];
+  try{ localStorage.setItem('quality_model_vendor_v1', JSON.stringify(m)); }catch(e){}
+}
+// 보고서에 쓰이는 거래처 후보 목록
+function mcVendorOptions(){
+  const set = new Set(Object.keys(VENDOR_MASTER));
+  Object.values(CUMULATIVE_DATA).forEach(md => Object.keys(md).forEach(v => set.add(v)));
+  set.delete('미분류');
+  return Array.from(set).sort();
+}
+
 // 반환: {type: 7종 중 하나, exact: 정확매칭 여부}
 function mcMapDefectType(name, category){
   const map = mcGetTypeMap();
@@ -5204,8 +5223,10 @@ async function mcFetchMonth(){
     // --- 행 단위 변환 ---
     const vendorMap = {};
     const noCustomer = new Set();      // 고객사 미지정 기종
+    const noCustDetail = {};           // 미분류 기종별 검사수/불량수
     const unmatchedParts = new Set();  // 단가 미매칭 품번
     const fuzzyTypes = {};             // 정확매칭 안 된 불량유형 → 매핑결과
+    const manualMV = mcGetModelVendor();
     let skipSys = 0;
 
     hist.forEach(r => {
@@ -5213,11 +5234,16 @@ async function mcFetchMonth(){
       if(dtRaw.startsWith('__')){ skipSys++; return; }          // 시스템 예약행 제외
       const model = String(r.model_name || '').trim();
       const part = itemOf[model] || model;
-      const cust = custOf[model] || '';
-      if(!cust && model) noCustomer.add(model);
+      const cust = manualMV[model] || custOf[model] || '';   // ⭐ 수동 배정 최우선
 
       const vendorName = cust ? normalizeVendorName(cust)
                               : (inferVendorFromPart(part) || '미분류');
+      if(!cust && vendorName === '미분류' && model){
+        noCustomer.add(model);
+        if(!noCustDetail[model]) noCustDetail[model] = {insp: 0, defect: 0};
+        noCustDetail[model].insp += Number(r.inspect_qty) || 0;
+        if(dtRaw && dtRaw !== '양품') noCustDetail[model].defect += Number(r.qty) || 0;
+      }
 
       const priceInfo = lookupPriceWithFallback(part, vendorName);
       if((priceInfo.source === 'none' || priceInfo.source === 'vendor-avg') && part) unmatchedParts.add(part);
@@ -5252,6 +5278,7 @@ async function mcFetchMonth(){
       monthKey: ym, from, to, vendors,
       histCount: hist.length, skipSys,
       noCustomer: Array.from(noCustomer),
+      noCustDetail: noCustDetail,
       unmatchedParts: Array.from(unmatchedParts),
       fuzzyTypes
     };
@@ -5306,12 +5333,37 @@ function mcRenderPreview(){
 
   const tPpm = tI > 0 ? Math.round(tD / tI * 1000000) : 0;
 
+  // 제외(반영 안 되는) 물량 집계
+  let xI = 0, xD = 0;
+  R.vendors.forEach(v => {
+    if(applyList.some(a => a.name === v.name)) return;
+    v.rows.forEach(r => {
+      xI += r.inspection;
+      DEFECT_COLS.forEach(d => xD += r.defects[d]);
+    });
+  });
+
   // 기존 누적 데이터 존재 여부 경고
   const exist = CUMULATIVE_DATA[R.monthKey] ? Object.keys(CUMULATIVE_DATA[R.monthKey]) : [];
   const overwrite = exist.filter(v => applyList.some(a => a.name === v));
   const keep = exist.filter(v => !applyList.some(a => a.name === v));
 
   let warn = '';
+
+  // ⭐ 직전 마감월 대비 이번 달 DB에 이력이 없는 거래처 경고 (누락 조기 발견)
+  const prevKeys = Object.keys(CUMULATIVE_DATA).filter(k => k < R.monthKey).sort();
+  if(prevKeys.length){
+    const pk = prevKeys[prevKeys.length - 1];
+    const prevVendors = Object.keys(CUMULATIVE_DATA[pk] || {});
+    const nowVendors = new Set(R.vendors.map(v => v.name));
+    const gone = prevVendors.filter(v => v !== '미분류' && !nowVendors.has(v));
+    if(gone.length){
+      warn += `<div class="mc-warn">🚫 <b>이번 달 불량이력 DB에 자료가 없는 거래처 ${gone.length}개</b> → ${gone.map(escapeHtml).join(', ')}
+        <br><span class="mc-small">· ${pk}에는 실적이 있었습니다. 확정해도 이 거래처의 ${R.monthKey} 실적은 <b>0으로 남습니다</b>.
+        <br>· 검사 실적을 불량관리 시스템에 등록하지 않는 거래처라면 [📋 실적요약 · 관리 → 수기 입력] 또는 [엑셀 업로드]로 등록해 주세요.</span></div>`;
+    }
+  }
+
   if(overwrite.length){
     warn += `<div class="mc-warn">⚠ <b>${R.monthKey}</b> 기존 누적값이 있는 거래처는 <b>덮어쓰기</b> 됩니다 → ${overwrite.map(escapeHtml).join(', ')}</div>`;
   }
@@ -5319,8 +5371,28 @@ function mcRenderPreview(){
     warn += `<div class="mc-ok">🔒 아래 거래처의 기존 누적값은 <b>그대로 보존</b>됩니다 → ${keep.map(escapeHtml).join(', ')}</div>`;
   }
   if(R.noCustomer.length){
-    warn += `<div class="mc-warn">⚠ <b>고객사 미지정 기종 ${R.noCustomer.length}종</b> (불량관리 시스템 → 설정 → 기종관리에서 고객사 지정 필요)<br>
-      <span class="mc-small">${R.noCustomer.slice(0,20).map(escapeHtml).join(', ')}${R.noCustomer.length > 20 ? ' 외 ' + (R.noCustomer.length - 20) + '종' : ''}</span></div>`;
+    const opts = mcVendorOptions();
+    const rows = R.noCustomer.map(mn => {
+      const d = (R.noCustDetail && R.noCustDetail[mn]) || {insp:0, defect:0};
+      const id = 'mv_' + encodeURIComponent(mn).replace(/[^A-Za-z0-9]/g, '');
+      return `<tr>
+        <td><b>${escapeHtml(mn)}</b></td>
+        <td class="n">${fmt(d.insp)}</td>
+        <td class="n" style="color:var(--accent)">${fmt(d.defect)}</td>
+        <td><select id="${id}" onchange="mcAssignVendor(this.value, this)" data-model="${escapeHtml(mn)}">
+              <option value="">— 거래처 선택 —</option>
+              ${opts.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('')}
+            </select></td>
+      </tr>`;
+    }).join('');
+    warn += `<div class="mc-warn">⚠ <b>고객사 미지정 기종 ${R.noCustomer.length}종 — 이대로 두면 실적에서 누락됩니다</b>
+      <div style="margin-top:8px; max-height:260px; overflow:auto">
+        <table class="hd-t" style="background:#fff">
+          <thead><tr><th>기종</th><th class="n">검사수</th><th class="n">불량수</th><th style="width:180px">거래처 배정</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <span class="mc-small">· 배정하면 즉시 재집계되며, 다음 달부터는 자동으로 해당 거래처로 잡힙니다.</span></div>`;
   }
   if(R.unmatchedParts.length){
     warn += `<div class="mc-warn">💰 <b>단가 미매칭 품번 ${R.unmatchedParts.length}건</b> (거래처 평균단가로 임시 계산 · ⚙ 단가 마스터에서 등록 권장)<br>
@@ -5346,6 +5418,7 @@ function mcRenderPreview(){
       <div><span class="lbl">불량수 합계</span><span class="val">${tD.toLocaleString()} EA</span></div>
       <div><span class="lbl">종합 PPM</span><span class="val alert">${tPpm.toLocaleString()}</span></div>
       <div><span class="lbl">손실비용</span><span class="val">${Math.round(tL).toLocaleString()} 원</span></div>
+      <div><span class="lbl">제외 물량</span><span class="val" style="${xI ? 'color:var(--accent-2)' : ''}">${xI.toLocaleString()}<span style="font-size:12px"> / ${xD.toLocaleString()}</span></span></div>
     </div>
     <table class="mc-table">
       <thead><tr>
@@ -5358,6 +5431,15 @@ function mcRenderPreview(){
 
   document.getElementById('mcApplyBtn').disabled = applyList.length === 0;
   MC_RESULT.applyList = applyList;
+}
+
+// 미분류 기종 → 거래처 배정 후 재집계
+function mcAssignVendor(vendor, selEl){
+  if(!vendor) return;
+  const model = selEl.getAttribute('data-model');
+  if(!model) return;
+  mcSetModelVendor(model, vendor);
+  mcFetchMonth();
 }
 
 // 불량유형 재지정 → 재계산
