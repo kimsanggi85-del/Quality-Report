@@ -479,6 +479,58 @@ table.worst td.ploss-amount{
 }
 .modal-overlay.show{display:flex;}
 
+/* ===== 홈 대시보드 ===== */
+.uploader{text-align:left; max-width:1280px; background:#FFFFFF; border:1px solid var(--ink); border-radius:0; box-shadow:6px 6px 0 var(--ink); padding:28px 32px;}
+.home-top{display:flex; justify-content:space-between; align-items:flex-start; gap:20px;
+  flex-wrap:wrap; border-bottom:3px double var(--ink); padding-bottom:16px; margin-bottom:18px;}
+.home-title{display:flex; align-items:center; gap:14px;}
+.home-mark{font-size:34px; line-height:1;}
+.home-title h1{font-family:var(--serif); font-size:26px; font-weight:900; letter-spacing:-0.01em; margin:0;}
+.home-title .sub{font-size:12px; color:var(--ink-2); margin-top:3px; margin-bottom:0;}
+.home-actions{display:flex; gap:8px; flex-wrap:wrap;}
+.home-actions .btn{padding:11px 20px; font-size:13.5px;}
+.home-actions .btn.primary{background:var(--ink);}
+.home-actions .btn.good{background:var(--good);}
+
+.hd-kpi{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  border:2px solid var(--ink); background:var(--ink); color:#fff; margin-bottom:16px;}
+.hd-kpi > div{padding:14px 16px; border-right:1px solid rgba(255,255,255,.15);}
+.hd-kpi > div:last-child{border-right:none;}
+.hd-kpi .lbl{display:block; font-family:var(--mono); font-size:9px; letter-spacing:.18em;
+  text-transform:uppercase; color:rgba(255,255,255,.6); margin-bottom:6px;}
+.hd-kpi .val{display:block; font-family:var(--serif); font-size:23px; font-weight:900; line-height:1;}
+.hd-kpi .val .u{font-size:12px; font-weight:400; margin-left:3px;}
+.hd-kpi .val.alert{color:var(--accent-2);}
+.hd-kpi .sub{display:block; font-size:10.5px; color:rgba(255,255,255,.65); margin-top:6px;}
+
+.hd-grid{display:grid; grid-template-columns:1.15fr 1fr; gap:18px; align-items:start;}
+@media(max-width:1000px){.hd-grid{grid-template-columns:1fr;}}
+.hd-box h3{font-family:var(--serif); font-size:15px; font-weight:900; margin-bottom:8px;
+  padding-bottom:5px; border-bottom:2px solid var(--ink); display:flex; justify-content:space-between; align-items:baseline;}
+.hd-box h3 span{font-family:var(--mono); font-size:10px; font-weight:400; color:var(--ink-2); letter-spacing:.1em;}
+.hd-t{width:100%; border-collapse:collapse; font-size:12px;}
+.hd-t th{background:var(--neutral); border:1px solid var(--ink); padding:6px 5px; font-size:11px; font-weight:700; white-space:nowrap;}
+.hd-t td{border:1px solid rgba(14,26,43,.22); padding:5px; white-space:nowrap;}
+.hd-t td.n, .hd-t th.n{text-align:right; font-family:var(--mono);}
+.hd-t td.c, .hd-t th.c{text-align:center;}
+.hd-t tr.tot td{background:var(--neutral); font-weight:800; border-top:2px solid var(--ink);}
+.hd-t tr.cur td{background:#FFF8E1;}
+.hd-up{color:var(--accent); font-weight:700;}
+.hd-dn{color:var(--good); font-weight:700;}
+.hd-bar{display:block; height:5px; background:#E4E0D6; margin-top:3px; position:relative;}
+.hd-bar i{display:block; height:100%; background:var(--good);}
+.hd-bar i.over{background:var(--accent);}
+.hd-empty{padding:36px; text-align:center; border:2px dashed var(--ink-2); color:var(--ink-2); font-size:13.5px; margin-bottom:16px;}
+
+.home-tools{display:flex; flex-wrap:wrap; gap:6px; margin-top:18px; padding-top:14px; border-top:1px solid rgba(14,26,43,.25);}
+.tbtn{font-family:var(--sans); font-size:11.5px; font-weight:600; padding:7px 12px; cursor:pointer;
+  background:#fff; color:var(--ink); border:1.5px solid var(--ink); transition:.12s;}
+.tbtn:hover{background:var(--ink); color:#fff;}
+.tbtn.danger{border-color:var(--accent); color:var(--accent);}
+.tbtn.danger:hover{background:var(--accent); color:#fff;}
+.home-help{margin-top:14px; padding:12px 14px; background:#FAFAF7; border-left:4px solid var(--ink-2);
+  font-size:12.5px; line-height:1.8; color:var(--ink-2);}
+
 /* ===== 월마감 자동 연동 ===== */
 .mc-row{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; align-items:end; margin-bottom:12px;}
 .mc-row label{display:block; font-family:var(--mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase;
@@ -677,73 +729,48 @@ table.worst td.ploss-amount{
 <body>
 
 <div class="uploader" id="uploader">
-  <div class="icon">📊</div>
-  <h1>품질현황 자동 보고서 생성기</h1>
-  <div class="sub">(주)태진다이텍 · 품질관리팀 · v25 (불량이력 DB 월마감 연동 · 1~6월 실적 내장 · 백업/복원)</div>
-  
-  <input type="file" id="fileInput" accept=".xlsx,.xls" multiple style="display:none">
-  <div class="btn-row">
-    <button class="btn" onclick="document.getElementById('fileInput').click()">
-      📁 불량이력 엑셀 파일 선택 (여러 개 가능)
-    </button>
-    <button class="btn" style="background:var(--good); box-shadow:4px 4px 0 var(--ink)" onclick="openMonthClose()">
-      🔗 월마감 자동 생성 (불량이력 DB 연동)
-    </button>
-    <button class="btn" style="background:var(--accent-2); color:var(--ink)" onclick="generateReportFromCumulative()">
-      📊 누적 데이터로 보고서 보기
-    </button>
-    <button class="btn gold" onclick="openPriceMaster()">
-      ⚙️ 단가 마스터 관리
-    </button>
-    <button class="btn" style="background:var(--good)" onclick="openManualEntry()">
-      ✍️ 수기 입력 관리
-    </button>
-    <button class="btn" style="background:var(--blue)" onclick="restoreSeedData()">
-      🔄 1~6월 시드 복원
-    </button>
-    <button class="btn" style="background:var(--blue)" onclick="exportCumulativeBackup()">
-      💾 누적 백업(JSON)
-    </button>
+
+  <div class="home-top">
+    <div class="home-title">
+      <span class="home-mark">📊</span>
+      <div>
+        <h1>품질현황 자동 보고서 생성기</h1>
+        <div class="sub">(주)태진다이텍 · 품질관리팀 · v25 (불량이력 DB 월마감 연동)</div>
+      </div>
+    </div>
+    <div class="home-actions">
+      <button class="btn primary" onclick="generateReportFromCumulative()">📊 보고서 생성</button>
+      <button class="btn good" onclick="openMonthClose()">🔗 월마감 자동 생성</button>
+    </div>
+  </div>
+
+  <div id="homeDash"></div>
+
+  <div class="home-tools">
+    <input type="file" id="fileInput" accept=".xlsx,.xls" multiple style="display:none">
+    <button class="tbtn" onclick="document.getElementById('fileInput').click()">📁 엑셀 업로드</button>
+    <button class="tbtn" onclick="openManualEntry()">✍️ 수기 입력</button>
+    <button class="tbtn" onclick="openPriceMaster()">⚙️ 단가 마스터</button>
+    <button class="tbtn" onclick="exportCumulativeBackup()">💾 백업(JSON)</button>
     <input type="file" id="restoreInput" accept=".json" style="display:none"
            onchange="if(this.files[0]){importCumulativeBackup(this.files[0]); this.value='';}">
-    <button class="btn" style="background:var(--good)" onclick="document.getElementById('restoreInput').click()">
-      📥 백업 복원
-    </button>
-    <button class="btn accent" onclick="resetCumulativeData()">
-      🗑️ 누적 데이터 초기화
-    </button>
+    <button class="tbtn" onclick="document.getElementById('restoreInput').click()">📥 백업 복원</button>
+    <button class="tbtn" onclick="restoreSeedData()">🔄 1~6월 시드 복원</button>
+    <button class="tbtn danger" onclick="resetCumulativeData()">🗑️ 누적 초기화</button>
+    <button class="tbtn" onclick="toggleHomeHelp()">❓ 사용 안내</button>
   </div>
-  
-  <div style="margin-top:18px; font-size:12.5px; color:rgba(14,26,43,0.7); line-height:1.7;">
-    ✅ <b>1~6월 누적 데이터는 시스템에 내장</b>되어 있습니다 (2026년 06월 보고서 실적 기준 · 시드 자동 주입)<br>
-    📅 파일 업로드 → <b>누적 병합만 수행</b> (여러 파일 이어서 업로드 가능) → 📊 <b>[누적 데이터로 보고서 보기]</b>로 보고서 생성<br>
+
+  <div class="home-help" id="homeHelp" style="display:none">
+    🔗 <b>월마감 자동 생성</b>: 불량관리 시스템(외관불량 이력 DB)에서 해당 월 실적을 직접 불러와 누적 반영 (<b>세동산업은 기존대로 수기 입력</b>)<br>
+    📅 <b>엑셀 업로드</b>: 불량이력 엑셀 파일 → 누적 병합만 수행 (여러 파일 이어서 업로드 가능)<br>
     🔁 <b>거래처 통합 매핑</b>: SKF Raceway / 레이스웨이 / SKF SBC → 모두 <b>Raceway</b>로 통합<br>
     💰 <b>단가</b>는 거래처별 마스터에서 자동 매칭 · 매년 단가 변경 시 ⚙️ 버튼으로 관리<br>
-    🔗 <b>월마감 자동 생성</b>: 불량관리 시스템(외관불량 이력 DB)에서 해당 월 실적을 직접 불러와 누적 반영 (<b>세동산업은 기존대로 수기 입력</b>)<br>
-    📊 <b>월별 손실비용 종합표</b>: Image 2 양식 그대로 유지
+    📋 <b>인식 컬럼</b>: 일자 · 기종 · 면 · 작업자 · 검사라인 · 검사수 · 기스 · 기타 · 소재 · 얼룩 · 찍힘 · 크랙 · 휨
+    <div id="masterStatus" style="margin-top:8px; font-size:11.5px; color:var(--ink-2);"></div>
   </div>
-  
-  <div id="masterStatus" style="margin-top:14px; font-size:11.5px; color:var(--ink-2);"></div>
-  <div id="cumulativeStatus" style="margin-top:6px; font-size:11.5px; color:var(--accent);"></div>
 </div>
 
 <div class="status" id="status"></div>
-
-<div class="empty-state" id="emptyState">
-  <h3>🚀 사용 방법</h3>
-  <p><b>가지고 계신 「불량이력」 엑셀 파일을 그대로 업로드</b>하면 자동으로 분석됩니다.</p>
-  <ol>
-    <li>위 <b>"불량이력 엑셀 파일 선택"</b> 버튼 클릭 (또는 끌어다 놓기)</li>
-    <li>업로드 즉시 자동으로 거래처별 분리·집계·차트 생성</li>
-    <li>단가는 137개 품번 마스터에서 자동 매칭 (정확/정규화/유사 매칭)</li>
-    <li>매칭 안 된 품번은 상단 경고 박스에 표시됨</li>
-    <li><b>인쇄(Ctrl+P)</b>로 출력 → A4·A3 가로 자동 적용</li>
-  </ol>
-  <p style="margin-top:14px; padding:10px; background:white; border-radius:4px; font-size:12px;">
-    <b>📋 인식하는 컬럼:</b> 일자 · 기종 · 면 · 작업자 · 검사라인 · 검사수 · 기스 · 기타 · 소재 · 얼룩 · 찍힘 · 크랙 · 휨 · 불량합계 · PPM<br>
-    <b>📊 자동 분석:</b> 검사라인별로 거래처를 자동 분리하고, 거래처별 1페이지(A3)에 그래프+표 배치
-  </p>
-</div>
 
 <div class="report" id="report">
   <div class="action-bar">
@@ -1520,6 +1547,7 @@ function generateReportFromCumulative(){
 }
 
 function updateCumulativeStatus(){
+  try{ renderHomeDashboard(); }catch(e){ console.error('대시보드 렌더 실패:', e); }
   const el = document.getElementById('cumulativeStatus');
   if(!el) return;
   
@@ -2390,7 +2418,7 @@ function renderReport(info, summary){
   
   document.getElementById('report').classList.add('shown');
   document.getElementById('uploader').style.display = 'none';
-  document.getElementById('emptyState').style.display = 'none';
+  {const _es=document.getElementById('emptyState'); if(_es) _es.style.display='none';}
   
   setTimeout(() => {
     drawSummaryCharts(sorted);
@@ -4002,7 +4030,7 @@ function resetReport(){
   document.getElementById('reportContent').innerHTML = '';
   document.getElementById('report').classList.remove('shown');
   document.getElementById('uploader').style.display = 'block';
-  document.getElementById('emptyState').style.display = 'block';
+  {const _es=document.getElementById('emptyState'); if(_es) _es.style.display='block';}
   document.getElementById('fileInput').value = '';
   hideStatus();
   window.scrollTo(0, 0);
@@ -4015,7 +4043,7 @@ function goBackToUploader(){
   document.getElementById('reportContent').innerHTML = '';
   document.getElementById('report').classList.remove('shown');
   document.getElementById('uploader').style.display = 'block';
-  document.getElementById('emptyState').style.display = 'block';
+  {const _es=document.getElementById('emptyState'); if(_es) _es.style.display='block';}
   document.getElementById('fileInput').value = '';
   // 누적 상태 표시 갱신
   updateCumulativeStatus();
@@ -5353,6 +5381,161 @@ function mcApplyToCumulative(){
   }
 }
 
+
+
+// ============================================================
+// 🏠 홈 대시보드 — 누적 실적 즉시 표시 (v25)
+// ============================================================
+function toggleHomeHelp(){
+  const el = document.getElementById('homeHelp');
+  el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+}
+
+// 누적 + 수기입력을 합쳐 월별/거래처별 집계 반환
+function hdCollect(){
+  const byMonth = {};   // mk -> {insp,defect,loss}
+  const byVendor = {};  // vendor -> {insp,defect,loss, months:Set}
+  const cell = {};      // mk|vendor -> {insp,defect,loss}
+  const add = (mk, vn, insp, defect, loss) => {
+    if(!byMonth[mk]) byMonth[mk] = {insp:0, defect:0, loss:0};
+    byMonth[mk].insp += insp; byMonth[mk].defect += defect; byMonth[mk].loss += loss;
+    if(!byVendor[vn]) byVendor[vn] = {insp:0, defect:0, loss:0, months:new Set()};
+    byVendor[vn].insp += insp; byVendor[vn].defect += defect; byVendor[vn].loss += loss;
+    byVendor[vn].months.add(mk);
+    const k = mk + '|' + vn;
+    if(!cell[k]) cell[k] = {insp:0, defect:0, loss:0};
+    cell[k].insp += insp; cell[k].defect += defect; cell[k].loss += loss;
+  };
+
+  Object.entries(CUMULATIVE_DATA).forEach(([mk, md]) => {
+    Object.entries(md).forEach(([vn, s]) => add(mk, vn, s.insp || 0, s.defect || 0, s.loss || 0));
+  });
+
+  // 수기 입력분: 누적에 없는 (월, 거래처)만 보강
+  try{
+    Object.entries(MANUAL_DATA || {}).forEach(([vn, list]) => {
+      (list || []).forEach(e => {
+        const mk = e.year + '-' + String(e.month).padStart(2, '0');
+        if(CUMULATIVE_DATA[mk] && CUMULATIVE_DATA[mk][vn]) return;
+        const avg = vendorAvgPrice(vn);
+        add(mk, vn, e.inspection || 0, e.defect || 0, (e.defect || 0) * avg);
+      });
+    });
+  }catch(e){}
+
+  return {byMonth, byVendor, cell};
+}
+
+function hdPpm(d, i){ return i > 0 ? Math.round(d / i * 1000000) : 0; }
+
+function renderHomeDashboard(){
+  const el = document.getElementById('homeDash');
+  if(!el) return;
+
+  const {byMonth, byVendor, cell} = hdCollect();
+  const months = Object.keys(byMonth).sort();
+
+  if(!months.length){
+    el.innerHTML = '<div class="hd-empty">📦 누적된 실적이 없습니다.<br>' +
+      '<span style="font-size:12px">🔗 [월마감 자동 생성] 또는 📁 [엑셀 업로드]로 데이터를 등록해 주세요.</span></div>';
+    return;
+  }
+
+  let tI = 0, tD = 0, tL = 0;
+  months.forEach(m => { tI += byMonth[m].insp; tD += byMonth[m].defect; tL += byMonth[m].loss; });
+  const tPpm = hdPpm(tD, tI);
+  const cur = months[months.length - 1];
+  const prev = months.length > 1 ? months[months.length - 2] : null;
+  const curPpm = hdPpm(byMonth[cur].defect, byMonth[cur].insp);
+  const prevPpm = prev ? hdPpm(byMonth[prev].defect, byMonth[prev].insp) : null;
+  const diff = prevPpm !== null ? curPpm - prevPpm : null;
+
+  // ---- KPI ----
+  const kpi = `
+  <div class="hd-kpi">
+    <div><span class="lbl">누적 기간</span><span class="val" style="font-size:17px">${cur}</span>
+         <span class="sub">${months[0]} ~ ${cur} · ${months.length}개월</span></div>
+    <div><span class="lbl">누적 검사수</span><span class="val">${fmt(tI)}<span class="u">EA</span></span>
+         <span class="sub">당월 ${fmt(byMonth[cur].insp)} EA</span></div>
+    <div><span class="lbl">누적 불량수</span><span class="val">${fmt(tD)}<span class="u">EA</span></span>
+         <span class="sub">당월 ${fmt(byMonth[cur].defect)} EA</span></div>
+    <div><span class="lbl">누적 PPM</span><span class="val alert">${fmt(tPpm)}</span>
+         <span class="sub">당월 ${fmt(curPpm)} PPM${diff !== null ? (diff > 0 ? ' ▲' + fmt(diff) : diff < 0 ? ' ▼' + fmt(-diff) : ' —') : ''}</span></div>
+    <div><span class="lbl">누적 손실비용</span><span class="val">${fmt(Math.round(tL))}<span class="u">원</span></span>
+         <span class="sub">당월 ${fmt(Math.round(byMonth[cur].loss))} 원</span></div>
+  </div>`;
+
+  // ---- 월별 실적 ----
+  const monthRows = months.map((mk, i) => {
+    const m = byMonth[mk];
+    const ppm = hdPpm(m.defect, m.insp);
+    let delta = '—';
+    if(i > 0){
+      const p = hdPpm(byMonth[months[i-1]].defect, byMonth[months[i-1]].insp);
+      const d = ppm - p;
+      delta = d > 0 ? `<span class="hd-up">▲ ${fmt(d)}</span>`
+            : d < 0 ? `<span class="hd-dn">▼ ${fmt(-d)}</span>` : '—';
+    }
+    return `<tr class="${mk === cur ? 'cur' : ''}">
+      <td class="c"><b>${mk}</b></td>
+      <td class="n">${fmt(m.insp)}</td>
+      <td class="n">${fmt(m.defect)}</td>
+      <td class="n"><b>${fmt(ppm)}</b></td>
+      <td class="c">${delta}</td>
+      <td class="n">${fmt(Math.round(m.loss))}</td>
+    </tr>`;
+  }).join('');
+
+  const monthTable = `
+  <div class="hd-box">
+    <h3>📅 월별 실적 <span>MONTHLY</span></h3>
+    <table class="hd-t">
+      <thead><tr><th class="c">월</th><th class="n">검사수(EA)</th><th class="n">불량수(EA)</th>
+        <th class="n">PPM</th><th class="c">전월대비</th><th class="n">손실비용(원)</th></tr></thead>
+      <tbody>${monthRows}
+        <tr class="tot"><td class="c">누계</td><td class="n">${fmt(tI)}</td><td class="n">${fmt(tD)}</td>
+          <td class="n">${fmt(tPpm)}</td><td class="c">—</td><td class="n">${fmt(Math.round(tL))}</td></tr>
+      </tbody>
+    </table>
+  </div>`;
+
+  // ---- 거래처별 누적 ----
+  const vList = Object.entries(byVendor).sort((a, b) => b[1].defect - a[1].defect);
+  const vendorRows = vList.map(([vn, v]) => {
+    const ppm = hdPpm(v.defect, v.insp);
+    const target = getVendorPpmTarget(vn);
+    const over = ppm > target;
+    const w = Math.min(100, target > 0 ? ppm / target * 100 : 0);
+    const c = cell[cur + '|' + vn];
+    const cPpm = c ? hdPpm(c.defect, c.insp) : null;
+    return `<tr>
+      <td><b>${escapeHtml(vn)}</b>
+          <span class="hd-bar"><i class="${over ? 'over' : ''}" style="width:${w.toFixed(0)}%"></i></span></td>
+      <td class="n">${fmt(v.insp)}</td>
+      <td class="n">${fmt(v.defect)}</td>
+      <td class="n"><b style="color:${over ? 'var(--accent)' : 'var(--good)'}">${fmt(ppm)}</b></td>
+      <td class="n" style="color:var(--ink-2)">${fmt(target)}</td>
+      <td class="n">${cPpm === null ? '<span style="color:#BBB">—</span>' : fmt(cPpm)}</td>
+      <td class="n">${fmt(Math.round(v.loss))}</td>
+    </tr>`;
+  }).join('');
+
+  const vendorTable = `
+  <div class="hd-box">
+    <h3>🏭 거래처별 누적 <span>BY CUSTOMER</span></h3>
+    <table class="hd-t">
+      <thead><tr><th>거래처 (목표 대비)</th><th class="n">검사수</th><th class="n">불량수</th>
+        <th class="n">PPM</th><th class="n">목표</th><th class="n">${cur}</th><th class="n">손실비용</th></tr></thead>
+      <tbody>${vendorRows}
+        <tr class="tot"><td>합계</td><td class="n">${fmt(tI)}</td><td class="n">${fmt(tD)}</td>
+          <td class="n">${fmt(tPpm)}</td><td class="n">—</td><td class="n">${fmt(curPpm)}</td>
+          <td class="n">${fmt(Math.round(tL))}</td></tr>
+      </tbody>
+    </table>
+  </div>`;
+
+  el.innerHTML = kpi + '<div class="hd-grid">' + monthTable + vendorTable + '</div>';
+}
 
 // 페이지 로드 시 마스터 상태 표시
 document.addEventListener('DOMContentLoaded', () => {
